@@ -1,0 +1,174 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <title>SSE Kripto Fiyat Akışı</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        #status {
+            text-align: center;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            transition: all .3s;
+        }
+
+        .price-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform .2s ease-in-out, box-shadow .2s ease-in-out;
+        }
+
+            .card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            }
+
+        .symbol {
+            font-size: 20px;
+            color: #3498db;
+            font-weight: 600;
+        }
+
+        .price {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .change {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        #log-container {
+            margin-top: 30px;
+        }
+
+        #log {
+            padding: 15px;
+            background: #ecf0f1;
+            border: 1px solid #dcdcdc;
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #dcdcdc;
+        }
+
+            .log-entry:last-child {
+                border-bottom: none;
+            }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kripto Para Fiyat Akışı (SSE)</h1>
+        <div id="status">Bağlanıyor...</div>
+
+        <div class="price-cards">
+            <div class="card" id="btc-card">
+                <div class="symbol">BTC</div>
+                <div class="price">Yükleniyor...</div>
+                <div class="change">-</div>
+            </div>
+            <div class="card" id="eth-card">
+                <div class="symbol">ETH</div>
+                <div class="price">Yükleniyor...</div>
+                <div class="change">-</div>
+            </div>
+            <div class="card" id="sol-card">
+                <div class="symbol">SOL</div>
+                <div class="price">Yükleniyor...</div>
+                <div class="change">-</div>
+            </div>
+        </div>
+
+        <div id="log-container">
+            <h3>Güncelleme Logu</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const source = new EventSource('/api/sse/price-stream');
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+
+        source.onopen = () => {
+            statusEl.textContent = 'Bağlı! Fiyat güncellemeleri alınıyor.';
+            statusEl.style.color = '#27ae60';
+            statusEl.style.backgroundColor = '#e8f8f0';
+        };
+
+        source.addEventListener('connected', (evt) => {
+            console.log('Bağlantı onayı alındı:', evt.data);
+        });
+
+        source.addEventListener('price-update', (evt) => {
+            const data = JSON.parse(evt.data);
+            const cardId = `${data.symbol.toLowerCase()}-card`;
+            const card = document.getElementById(cardId);
+            if (!card) return;
+
+            card.querySelector('.price').textContent = `$${Number(data.newPrice).toLocaleString()}`;
+
+            const changeEl = card.querySelector('.change');
+            const cp = Number(data.changePercent);
+            changeEl.textContent = `${cp > 0 ? '+' : ''}${cp}%`;
+            changeEl.style.color = cp >= 0 ? '#28a745' : '#dc3545';
+
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const t = new Date(data.timestamp);
+            entry.textContent = `[${t.toLocaleTimeString()}] ${data.symbol}: $${data.newPrice} (${cp}%)`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        });
+
+        source.onerror = () => {
+            statusEl.textContent = 'Bağlantı koptu! Yeniden bağlanılıyor...';
+            statusEl.style.color = '#c0392b';
+            statusEl.style.backgroundColor = '#fdeded';
+        };
+    </script>
+</body>
+</html>
